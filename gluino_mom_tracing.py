@@ -19,7 +19,7 @@ r = np.hypot(dvtx[0], dvtx[1])
 
 #selections
 id_sel1 = abs(pdg_id) >= 1000021
-id_sel2 = abs(pdg_id) != 1000039    # to include r hadrons in moms list whose pdg id are above 1000021 and to exclude gravitino as they are never moms to gluino.
+id_sel2 = abs(pdg_id) != 1000039    # to include r hadrons in moms list whose pdg id are above 1000021 and to exclude gravitinos as they are never mothers for the gluino.
 
 idsel = id_sel1 & id_sel2
 #allmom = mom1[idsel]  #all the moms of gluinos under our consideration
@@ -66,14 +66,14 @@ r_22  = r[idsel & status_sel2]
      #else:
        #ith_row[cols] = gluino2
   #mom_order.append(i)
-  #mom_order[i] = ith_row   # this is a list containing 2d arrays. Each array has the list of moms of gluinos generation wise pertaining ot one gluino_status106. 
+  #mom_order[i] = ith_row   # this is a list containing 2d arrays. Each array has the list of moms of gluinos, generation wise pertaining to one of the two gluino_status106. 
 
 
 #save = np.save('momlists_gluino2400_tau4p0.npy', mom_order)
-load = np.load('momlists_gluino2400_tau4p0.npy', allow_pickle= True) # since for loop takes longer to run in python once the gnerated array is saved for later use and the correspond lines are commented out.
+load = np.load('momlists_gluino2400_tau4p0.npy', allow_pickle= True) # since 'for' loop takes longer to run in python once the gnerated array is saved for later use and the correspond lines are commented out.
 
 
-# reaaranging the entries in r_22 array if their order is reversed that can be examined after the end of the loop below.
+# rearranging the entries in r_22 array if their order is reversed, which can be examined after the end of the loop below.
 
 r_22new = []
 for i in range (0,1000):
@@ -84,8 +84,8 @@ for i in range (0,1000):
       #list_2 = list(itl.chain(*list_1))
       if j ==0:
          if 5 in list_1:
-            ith_row[j] = r_22[i,[0]]  # always in an event instant 5 corresponds to 1st gluino of status22 and 6 to the next gluino_22.
-          elif 6 in list_1:           # Thus if the mom_list 1 contains 6 or if mom list 2 contains 5 then we can say that the orderis reversed in this event.
+            ith_row[j] = r_22[i,[0]]  # always in an event momnumber '5' corresponds to 1st gluino of status22 and 6 to the next gluino_22. [Realised by examinig the root file for various events]
+          elif 6 in list_1:           # Thus if the mom_list 1 contains 6 or if mom list 2 contains 5 then we can say that the order is reversed in this event.
             ith_row[j] = r_22[i,[1]]
       else:
          if 6 in list_1:
