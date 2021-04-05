@@ -1,0 +1,109 @@
+import uproot
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+import pandas as pd
+
+gmass = np.array([])
+gtau =np.array([])
+
+for m_g in np.arange(1000,3100,100):
+
+  x= np.arange(2.5, 6.1, 0.1)
+
+  for n in (np.round_(x,decimals=1)):
+
+     dataroot = uproot.open('/data3/jayashri/root_files/delphes_generated/eff_plot_root_files/delphes_{}_{}_out.root'.format(m_g,n))
+     dataroot.keys()
+     data_tree = dataroot['Delphes']
+     mass,pdgid,status,pT,e,vtx_x,vtx_y,pz = data_tree.arrays(['Particle.Mass','Particle.PID','Particle.Status','Particle.PT','Particle.E','Particle.X','Particle.Y','Particle.Pz'], outputtype=tuple)
+     met_d = data_tree["MissingET.MET"].array()
+     met_d = met_d.flatten()
+
+     status_sel = abs(status) == 106
+     id_sel = abs(pdgid) == 1000021
+     vtx_trans = np.hypot (vtx_x,vtx_y)
+     p_abs = np.hypot (pT,pz)
+     vtx_trans_sel = vtx_trans[status_sel & id_sel]  # selecting gluinos of status 106
+     pT_sel = pT[status_sel & id_sel]
+     p_abs_sel =  p_abs[status_sel & id_sel]
+     mass_sel = mass[status_sel & id_sel]
+     evt = np.argmin(mass_sel.any())  #argmin finds the minimum value of an array and returns its index; in our case it will be an empty array denoting the event where there is no gluino of status 106
+     
+     if evt!=0:
+        met_d = np.delete(met_d,evt) # to remove one particular element of an array by index
+
+     length = int(len(mass_sel.flatten())/2)
+     metsel = met_d>300
+
+  #To find beta
+     sq_e = m_g*m_g + (p_abs_sel)**2
+     beta = np.sqrt(1-(m_g*m_g/sq_e))
+     delay = vtx_trans_sel*((1/beta)-1)*(p_abs_sel/pT_sel)  #units mm/c
+     delay = np.reshape(np.array(delay.flatten()),(length,2))
+     delay_resol =np.add(delay,np.random.normal(0,299.79,size=(length,2)))
+     vtx_trans_sel = np.reshape(np.array(vtx_trans_sel.flatten()),(length,2))
+     r_ecal = 1600 #mm
+     r_hcal = 2876 #mm
+     tsel_ecal = delay_resol > 899.37    # 3/0.0033 (since 3*299.79 = 899.37 mm/c)
+     tsel_hcal = delay_resol > 1498.95      #5/0.0033
+     rsel_ecal = vtx_trans_sel < r_ecal
+     rsel_hcal = vtx_trans_sel < r_hcal
+
+# onlyjettime
+     ecal_jettime = ((rsel_ecal[:,0] & tsel_ecal[:,0]) | (rsel_ecal[:,1] & tsel_ecal[:,1])) & metsel
+     hcal_jettime =(((rsel_hcal[:,0] & tsel_hcal[:,0]) | (rsel_hcal[:,1] & tsel_hcal[:,1])) |((rsel_ecal[:,0] & tsel_ecal[:,0]) | (rsel_ecal[:,1] & tsel_ecal[:,1]))) & metsel
+     mass_sel = np.reshape(np.array(mass_sel.flatten()),(length,2))
+     gmass_e_j = mass_sel[ecal_jettime]  #mass is stored in MeV units in delphes root file
+     gmass_h_j = mass_sel[hcal_jettime]
+
+     m_arr = np.full(shape=len(gmass_h_j.flatten()),fill_value=m_g,dtype=np.int)
+     tau_arr = np.full(shape=len(gmass_h_j.flatten()),fill_value=n)
+     gmass = np.append(gmass, m_arr)
+     gtau = np.append(gtau,tau_arr)
+     
+     eff_e_j = len(gmass_e_j.flatten())*0.5*0.001
+     eff_h_j = len(gmass_h_j.flatten())*0.5*0.001
+
+
+antilog = np.full(shape= len(gtau),fill_value=10)
+gtau_10 = np.power(antilog, gtau)
+
+#2d limit plot
+#using hcal jeteff only (no met)
+
+cls_lim = 6 # 3*2 When the included efficiency is 50%
+lum = 137   #fb^-1
+
+xbin = np.logspace(2.45, 6.05, num=37)
+ybin = np.linspace(950, 3050, 22)
+w_h = np.repeat(0.001*0.5, len(gmass))  # in Delphes root file every event has 2 gluino entry and we take half of them (multiply by 0.5) to account for a total efficiency of 1 for 1000 events
+
+counts, _, _ = np.histogram2d(gtau_10, gmass, bins=(xbin,ybin), weights= w_h)
+eff_reciprocal = np.reciprocal(counts)
+
+fig, ax = plt.subplots(figsize = (12, 8))
+cs = ax.pcolormesh(xbin, ybin, (eff_reciprocal.T)*cls_lim/lum , cmap=mpl.cm.viridis_r, edgecolor='face', norm = mpl.colors.LogNorm())
+cbar = fig.colorbar(cs)
+ax.set_xscale('log')
+
+plt.title('2d limit plot with Hcal jet_time_eff & meteff', fontsize = 14)
+plt.xlabel('Lifetime (ctau)', fontsize = 14)
+plt.ylabel('Mass (GeV)',fontsize = 14)
+cbar.ax.set_ylabel('95% observed CL upper limit on Cross section (fb)', fontsize = 10)
+#plt.savefig('2dlimit_hcal_jettime_eff_meteff_trial3.png', dpi = 300)
+
+#print (((eff_reciprocal.T)*cls_lim/lum)[14])
+
+theo_cs = np.array(pd.read_csv('/home/jayashri/Downloads/theoretical_crossection.csv',header=None)).T
+
+cs_fb = theo_cs[1]*1000 # to convert pico barn to femto barn
+our_limit = (eff_reciprocal.T)*cls_lim/lum
+
+for i in range (21):
+  print (cs_fb[i])
+  print (our_limit[i])
+  check = np.isclose(our_limit[i], cs_fb[i])
+  print (np.where(check))
+
+     
