@@ -1,1 +1,11 @@
+<<<<<<< HEAD
 Success
+=======
+test success
+
+works in lxplus
+>>>>>>> 1c67cb17ce592c296b9d326e1b88abb29e6b53a4
+
+
+
+works in kisti
